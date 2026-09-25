@@ -1,0 +1,182 @@
+name: 🛡️ Enterprise DevSecOps & GitOps Release Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - 'k8s/overlays/**'
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  security-events: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # =========================================================================
+  # GATE 1 & 2: Lint, SAST & Secret Detection
+  # =========================================================================
+  sast-and-secrets:
+    name: 🔍 SAST & Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Static Code Linting
+        run: npm run lint
+
+      # Gate 2A: Secret Detection with Gitleaks
+      - name: Gitleaks Secret Detection
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Gate 2B: SAST Scan with Semgrep (OWASP Top 10)
+      - name: Semgrep SAST Scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/owasp-top-ten
+            p/javascript
+          generateSarif: "1"
+        continue-on-error: true
+
+  # =========================================================================
+  # GATE 3 & 4: SCA Dependency & IaC Security Compliance
+  # =========================================================================
+  sca-and-iac:
+    name: 📦 SCA & IaC Security Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Gate 3: Software Composition Analysis (SCA)
+      - name: Trivy Dependency Vulnerability Scan (SCA)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0' # Set to 1 in strict prod enforcement
+
+      # Gate 4: Infrastructure as Code (IaC) Scan (Checkov / CIS Benchmarks)
+      - name: Checkov IaC Security & CIS Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: 'k8s/'
+          framework: 'kubernetes'
+          output_format: 'cli,sarif'
+          output_file_path: 'console,checkov.sarif'
+          soft_fail: true
+
+  # =========================================================================
+  # GATE 5: Multi-Stage Container Build & CVE Verification
+  # =========================================================================
+  build-and-container-scan:
+    name: 🐳 Container Build & CVE Scan
+    needs: [sast-and-secrets, sca-and-iac]
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=short,prefix=sha-
+            type=ref,event=branch
+
+      - name: Build Container Image Locally
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Gate 5: Image CVE Scanning before promotion
+      - name: Trivy Container Image CVE Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: 'table'
+          severity: 'CRITICAL'
+          exit-code: '0'
+
+      - name: Push Container Image to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # =========================================================================
+  # GATE 6: Automated GitOps Promotion (Kustomize Image Tag Update)
+  # =========================================================================
+  gitops-promote:
+    name: 🔄 GitOps Promotion to Staging
+    needs: [build-and-container-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Kustomize Staging Image Tag
+        run: |
+          cd k8s/overlays/staging
+          # Update the newTag field in kustomization.yaml to immutable commit SHA
+          sed -i 's/newTag:.*/newTag: "${{ github.sha }}"/' kustomization.yaml
+
+      - name: Commit & Push GitOps State Change
+        run: |
+          git config --global user.name "gitops-release-bot"
+          git config --global user.email "gitops-bot@gocart.io"
+          git add k8s/overlays/staging/kustomization.yaml
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore(gitops): auto-promote staging to sha-${{ github.sha }} [skip ci]" && git push)
