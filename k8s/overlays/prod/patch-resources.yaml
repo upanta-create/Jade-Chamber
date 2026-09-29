@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: gocart-app
+spec:
+  replicas: 5
+  template:
+    spec:
+      containers:
+        - name: gocart
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 1Gi

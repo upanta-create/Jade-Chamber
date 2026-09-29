@@ -1,0 +1,116 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: gocart-app
+  labels:
+    app.kubernetes.io/name: gocart
+    app.kubernetes.io/part-of: gocart-platform
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: gocart
+  template:
+    metadata:
+      labels:
+        app: gocart
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      initContainers:
+        - name: db-migrate
+          image: ghcr.io/yourorg/gocart:latest
+          command: ["npx", "prisma", "migrate", "deploy"]
+          envFrom:
+            - configMapRef:
+                name: gocart-config
+            - secretRef:
+                name: gocart-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+      containers:
+        - name: gocart
+          image: ghcr.io/yourorg/gocart:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: gocart-config
+            - secretRef:
+                name: gocart-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 2
+  strategy:
+    canary:
+      # Stable and Preview services allow testing traffic before promotion
+      stableService: gocart-active
+      canaryService: gocart-preview
+      maxSurge: "25%"
+      maxUnavailable: 0
+      steps:
+        # Step 1: Shift 10% traffic to Canary replica
+        - setWeight: 10
+        - pause: { duration: 1m }
+        # Step 2: Run automated metric analysis using Prometheus
+        - analysis:
+            templates:
+              - templateName: gocart-success-rate
+            args:
+              - name: service-name
+                value: gocart-preview
+        # Step 3: Shift 30% traffic to Canary
+        - setWeight: 30
+        - pause: { duration: 2m }
+        - analysis:
+            templates:
+              - templateName: gocart-success-rate
+            args:
+              - name: service-name
+                value: gocart-preview
+        # Step 4: Promote to 100% stable version
+        - setWeight: 100

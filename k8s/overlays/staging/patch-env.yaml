@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gocart-config
+data:
+  NODE_ENV: "staging"
+  NEXT_PUBLIC_APP_VERSION: "v1.0.0-rc1"
+  NEXT_PUBLIC_RELEASE_CHANNEL: "canary"

@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gocart-active
+  labels:
+    app.kubernetes.io/name: gocart
+    app.kubernetes.io/component: active-service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: gocart
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gocart-preview
+  labels:
+    app.kubernetes.io/name: gocart
+    app.kubernetes.io/component: preview-service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: gocart

@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: gocart-prod
+namePrefix: prod-
+
+resources:
+  - ../../base
+
+patches:
+  - path: patch-resources.yaml
+    target:
+      kind: Rollout
+      name: gocart-app
+
+images:
+  - name: ghcr.io/yourorg/gocart
+    newName: ghcr.io/yourorg/gocart
+    newTag: "v1.0.0"

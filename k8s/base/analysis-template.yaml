@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: gocart-success-rate
+  labels:
+    app.kubernetes.io/name: gocart
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: success-rate
+      interval: 30s
+      successCondition: result[0] >= 0.99
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus-k8s.monitoring.svc.cluster.local:9090
+          query: |
+            sum(rate(http_requests_total{job="gocart-app", status!~"5.*"}[1m]))
+            /
+            sum(rate(http_requests_total{job="gocart-app"}[1m]))
+    - name: latency-p95
+      interval: 30s
+      successCondition: result[0] <= 0.500 # p95 under 500ms
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus-k8s.monitoring.svc.cluster.local:9090
+          query: |
+            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="gocart-app"}[1m])) by (le))

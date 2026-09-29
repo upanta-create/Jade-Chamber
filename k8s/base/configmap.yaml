@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gocart-config
+  labels:
+    app.kubernetes.io/name: gocart
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  NEXT_PUBLIC_APP_VERSION: "v1.0.0"
+  NEXT_PUBLIC_RELEASE_CHANNEL: "stable"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gocart-secrets
+  labels:
+    app.kubernetes.io/name: gocart
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://gocart:gocart_secret@gocart-postgres:5432/gocart_db?schema=public"
+  NEXTAUTH_SECRET: "demo_super_secret_jwt_key_gitops_example"

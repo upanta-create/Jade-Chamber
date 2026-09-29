@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+.env*
+!.env.example
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+Dockerfile
+docker-compose.yml
+.github
+k8s
+argocd
+scripts
