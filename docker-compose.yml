@@ -1,0 +1,58 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gocart-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://gocart:gocart_secret@postgres:5432/gocart_db?schema=public
+      - NEXT_PUBLIC_APP_VERSION=v1.0.0
+      - NEXT_PUBLIC_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gocart-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: gocart-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: gocart
+      POSTGRES_PASSWORD: gocart_secret
+      POSTGRES_DB: gocart_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gocart -d gocart_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gocart-network
+
+  adminer:
+    image: adminer:latest
+    container_name: gocart-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - gocart-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  gocart-network:
+    driver: bridge
