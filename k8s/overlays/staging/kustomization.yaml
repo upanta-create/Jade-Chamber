@@ -14,6 +14,6 @@ patches:
       name: gocart-config
 
 images:
-  - name: ghcr.io/yourorg/gocart
-    newName: ghcr.io/yourorg/gocart
+  - name: ghcr.io/upanta-create/jade-chamber
+    newName: ghcr.io/upanta-create/jade-chamber
     newTag: "latest"

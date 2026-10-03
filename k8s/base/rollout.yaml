@@ -23,7 +23,7 @@ spec:
         fsGroup: 1001
       initContainers:
         - name: db-migrate
-          image: ghcr.io/yourorg/gocart:latest
+          image: ghcr.io/upanta-create/jade-chamber:latest
           command: ["npx", "prisma", "migrate", "deploy"]
           envFrom:
             - configMapRef:
@@ -45,7 +45,7 @@ spec:
               memory: 256Mi
       containers:
         - name: gocart
-          image: ghcr.io/yourorg/gocart:latest
+          image: ghcr.io/upanta-create/jade-chamber:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
