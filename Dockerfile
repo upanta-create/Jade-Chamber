@@ -14,7 +14,8 @@ ENV NODE_ENV=production
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts
+ENV NODE_ENV=development
+RUN npm ci
 
 # ---------------------------------------------------------
 # Stage 3: Builder
@@ -27,6 +28,7 @@ COPY prisma ./prisma
 COPY . .
 
 # Generate Prisma Client for the current architecture
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/gocart?schema=public"
 RUN npx prisma generate
 
 # Build Next.js with standalone output
