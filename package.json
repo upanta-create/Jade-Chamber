@@ -29,6 +29,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "eslint": "^8",
+    "eslint-config-next": "15.3.5",
     "prisma": "^6.4.1",
     "tailwindcss": "^4"
   }
