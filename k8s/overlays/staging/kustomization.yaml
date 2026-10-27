@@ -16,4 +16,4 @@ patches:
 images:
   - name: ghcr.io/upanta-create/jade-chamber
     newName: ghcr.io/upanta-create/jade-chamber
-    newTag: "latest"
+    newTag: "9c86219691c88fea8175d6625cc43da13b9f5121"
