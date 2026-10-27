@@ -830,7 +830,7 @@ export default function StoreManageProducts() {
             <h3 className="text-lg font-bold text-slate-900 text-center">Banish from Jade Chamber?</h3>
             <p className="text-sm text-slate-500 text-center mt-2 leading-relaxed">
               Are you sure you wish to banish{' '}
-              <strong className="text-slate-800">"{activeProduct.name}"</strong> from the registry? This
+              <strong className="text-slate-800">&quot;{activeProduct.name}&quot;</strong> from the registry? This
               action permanently removes it from the Golden House ledger.
             </p>
 

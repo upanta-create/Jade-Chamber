@@ -21,7 +21,7 @@ export default function Product() {
             fetchProduct()
         }
         scrollTo(0, 0)
-    }, [productId,products]);
+    }, [productId, products, fetchProduct]);
 
     return (
         <div className="mx-6">

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from "react"
+import Image from "next/image"
 import Loading from "@/components/Loading"
 import { orderDummyData } from "@/assets/assets"
 
@@ -119,9 +120,11 @@ export default function StoreOrders() {
                             <div className="space-y-2">
                                 {selectedOrder.orderItems.map((item, i) => (
                                     <div key={i} className="flex items-center gap-4 border border-slate-100 shadow rounded p-2">
-                                        <img
+                                        <Image
                                             src={item.product.images?.[0].src || item.product.images?.[0]}
                                             alt={item.product?.name}
+                                            width={64}
+                                            height={64}
                                             className="w-16 h-16 object-cover rounded"
                                         />
                                         <div className="flex-1">
